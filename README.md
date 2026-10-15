@@ -27,6 +27,7 @@
 - กราฟจำนวนคลิกรายวันย้อนหลัง 30 วัน และตารางการคลิกล่าสุด (เวลา, ที่มา, อุปกรณ์/เบราว์เซอร์)
 - ตั้งชื่อลิงก์เอง (Custom alias) เช่น `/synerry`
 - กำหนดวันหมดอายุของลิงก์ (เมื่อหมดอายุจะแสดงหน้าแจ้งเตือน HTTP 410)
+- **Export สถิติเป็น CSV** (เปิดใน Excel ได้ ภาษาไทยไม่เพี้ยน) ทั้งรายการลิงก์ทั้งหมด และสถิติรายวันของแต่ละลิงก์ เพื่อนำไปทำรายงานต่อ
 - ค้นหาลิงก์ในประวัติ, คัดลอกลิงก์ในคลิกเดียว, ลบลิงก์
 - ตรวจสอบความถูกต้องของ URL (รองรับเฉพาะ http/https) และเติม `https://` ให้อัตโนมัติ
 - รองรับการใช้งานบนมือถือ (Responsive)
@@ -68,6 +69,33 @@
 - `urls` 1 ลิงก์ มีได้หลาย `clicks` (1:N) เก็บการคลิกทีละครั้ง เพื่อนำไปคำนวณสถิติ
 
 โครงสร้างตารางทั้งหมด: [docs/schema.sql](docs/schema.sql)
+
+## 🏗 System Architecture
+
+![Architecture Diagram](docs/architecture.png)
+
+| ส่วน | บริการ | หน้าที่ |
+|---|---|---|
+| Frontend | Render Static Site (CDN) | หน้าเว็บ React ที่ build แล้ว เรียก API ผ่าน `VITE_API_URL` |
+| Backend | Render Web Service | REST API, Redirect และสร้าง QR Code (Node.js + Express) |
+| Database | Neon PostgreSQL | เก็บ users, urls, clicks เชื่อมต่อผ่าน SSL |
+| CI/CD | GitHub → Render | push ขึ้น `main` แล้ว Render build และ deploy ใหม่อัตโนมัติ |
+
+**ลำดับการทำงาน:** ① ผู้ใช้โหลดหน้าเว็บ → ② หน้าเว็บเรียก REST API พร้อม JWT เพื่อสร้างลิงก์และดูสถิติ →
+③ ผู้เข้าชมคลิกหรือสแกน QR (`/:code`) → ④ backend บันทึกการคลิกแล้วตอบ 302 → ⑤ เบราว์เซอร์เปิดเว็บปลายทาง
+
+### แนวทางแยกเป็น Microservice
+ปัจจุบันระบบเป็น **Modular Monolith** คือแยกโค้ดเป็นโมดูลตามหน้าที่ (`routes/auth`, `routes/urls`, `routes/public`)
+แต่รันใน service เดียว เพื่อให้ใช้ free tier ได้และไม่มี cold start หลายจุด เมื่อระบบโตขึ้นสามารถแยกได้ดังนี้
+
+| Service | รับผิดชอบ | เหตุผลที่แยก |
+|---|---|---|
+| **Redirect Service** | `/:code`, `/api/qr/:code` | รับโหลดสูงสุดจากผู้เข้าชม scale แยกได้ และใส่ cache (เช่น Redis) ได้ |
+| **URL / Stats Service** | `/api/urls` | งานของเจ้าของลิงก์ ปริมาณน้อยกว่า |
+| **Auth Service** | `/api/auth` | ออก JWT ให้ service อื่นตรวจสอบด้วย secret เดียวกัน |
+| **API Gateway** | รวม endpoint ทั้งหมดไว้ใน domain เดียว | frontend ไม่ต้องรู้ที่อยู่ของแต่ละ service |
+
+การบันทึกคลิกสามารถเปลี่ยนเป็นส่งเข้า Message Queue เพื่อให้ Redirect ตอบกลับได้เร็วขึ้นโดยไม่ต้องรอเขียนฐานข้อมูล
 
 ## 📁 โครงสร้างโปรเจกต์
 
