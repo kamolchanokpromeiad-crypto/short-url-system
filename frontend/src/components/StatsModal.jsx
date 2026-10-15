@@ -1,6 +1,7 @@
 // StatsModal.jsx — สถิติของลิงก์เดียว: ยอดรวม, กราฟรายวัน 30 วัน, การคลิกล่าสุด
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { downloadCsv, csvDate, today } from '../csv.js';
 
 // แปลง user agent เป็นข้อความสั้นๆ ที่อ่านง่าย
 function device(ua = '') {
@@ -61,6 +62,25 @@ export default function StatsModal({ item, onClose }) {
   }, [onClose]);
 
   const u = data?.url;
+
+  // Export สถิติของลิงก์นี้: สรุป + จำนวนคลิกรายวัน + การคลิกล่าสุด
+  function exportCsv() {
+    const rows = [
+      ['Short URL', item.short_url],
+      ['Full URL', item.original_url],
+      ['คลิกทั้งหมด', u.total_clicks],
+      ['คลิกจากลิงก์', u.total_clicks - u.qr_scans],
+      ['สแกน QR', u.qr_scans],
+      [],
+      ['วันที่', 'จำนวนคลิก'],
+      ...data.daily.map((d) => [d.day, d.clicks]),
+      [],
+      ['การคลิกล่าสุด: เวลา', 'ที่มา', 'อุปกรณ์'],
+      ...data.recent.map((c) => [csvDate(c.clicked_at), c.source === 'qr' ? 'สแกน QR' : 'คลิกลิงก์', device(c.user_agent)]),
+    ];
+    downloadCsv(`stats-${item.short_code}-${today()}.csv`, rows);
+  }
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={`สถิติของ /${item.short_code}`} onClick={(e) => e.stopPropagation()}>
@@ -69,7 +89,10 @@ export default function StatsModal({ item, onClose }) {
             <h2>สถิติ /{item.short_code}</h2>
             <div className="original muted" title={item.original_url}>{item.original_url}</div>
           </div>
-          <button type="button" className="btn sm ghost" onClick={onClose} aria-label="ปิด">✕</button>
+          <div className="row-gap">
+            {u && <button type="button" className="btn sm" onClick={exportCsv}>⬇ Export CSV</button>}
+            <button type="button" className="btn sm ghost" onClick={onClose} aria-label="ปิด">✕</button>
+          </div>
         </div>
 
         {error && <div className="alert">{error}</div>}

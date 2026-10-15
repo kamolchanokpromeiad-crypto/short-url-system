@@ -4,7 +4,7 @@
 
 ## 🔗 ทดลองใช้งานออนไลน์
 
-| | |
+| รายการ | ข้อมูล |
 |---|---|
 | **เว็บไซต์** | https://short-url-web.onrender.com |
 | **API (Backend)** | https://short-url-system-8q0g.onrender.com |
@@ -27,6 +27,7 @@
 - กราฟจำนวนคลิกรายวันย้อนหลัง 30 วัน และตารางการคลิกล่าสุด (เวลา, ที่มา, อุปกรณ์/เบราว์เซอร์)
 - ตั้งชื่อลิงก์เอง (Custom alias) เช่น `/synerry`
 - กำหนดวันหมดอายุของลิงก์ (เมื่อหมดอายุจะแสดงหน้าแจ้งเตือน HTTP 410)
+- **Export สถิติเป็น CSV** (เปิดใน Excel ได้ ภาษาไทยไม่เพี้ยน) ทั้งรายการลิงก์ทั้งหมด และสถิติรายวันของแต่ละลิงก์ เพื่อนำไปทำรายงานต่อ
 - ค้นหาลิงก์ในประวัติ, คัดลอกลิงก์ในคลิกเดียว, ลบลิงก์
 - ตรวจสอบความถูกต้องของ URL (รองรับเฉพาะ http/https) และเติม `https://` ให้อัตโนมัติ
 - รองรับการใช้งานบนมือถือ (Responsive)
@@ -42,9 +43,23 @@
 | QR Code | `qrcode` |
 | Hosting | Render (Web Service + Static Site), Neon (PostgreSQL) |
 
-## 📐 Data Flow Diagram (Level 0)
+## 📐 Data Flow Diagram
+
+### Context Diagram (ภาพรวมระบบ)
+
+![Context Diagram](docs/context-diagram.png)
+
+### DFD Level 0
 
 ![DFD Level 0](docs/dfd-level0.png)
+
+| Process | หน้าที่ | Data Store ที่ใช้ |
+|---|---|---|
+| 1.0 จัดการสมาชิก | สมัครสมาชิก / เข้าสู่ระบบ แล้วออก Token (JWT) | D1 users |
+| 2.0 สร้าง Short URL | ตรวจ URL, สุ่มหรือใช้ชื่อลิงก์ที่ตั้งเอง, ตรวจรหัสซ้ำ แล้วบันทึก | D2 urls |
+| 3.0 สร้าง QR Code | สร้างรูป QR (PNG) จาก Short URL ให้แสดงและดาวน์โหลด | — |
+| 4.0 Redirect และบันทึกการคลิก | ค้นหา Full URL ตรวจวันหมดอายุ บันทึกการคลิก แล้ว Redirect 302 | D2 urls, D3 clicks |
+| 5.0 แสดงประวัติและสถิติ | แสดงรายการลิงก์ จำนวนคลิก/สแกน QR กราฟรายวัน และลบลิงก์ | D2 urls, D3 clicks |
 
 ## 🗄 ER Diagram
 

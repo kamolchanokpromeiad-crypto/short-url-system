@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import StatsModal from './StatsModal.jsx';
+import { downloadCsv, csvDate, today } from '../csv.js';
 
 const fmtDate = (v) =>
   v ? new Date(v).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
@@ -135,11 +136,34 @@ function History({ items, loading, onStats, onDelete, onQr }) {
   const totalClicks = items.reduce((s, i) => s + i.total_clicks, 0);
   const totalQr = items.reduce((s, i) => s + i.qr_scans, 0);
 
+  // Export รายการที่แสดงอยู่ (ตามคำค้นหา) เป็น CSV
+  function exportCsv() {
+    const rows = [
+      ['Short URL', 'Full URL', 'คลิกทั้งหมด', 'คลิกจากลิงก์', 'สแกน QR', 'คลิกล่าสุด', 'สร้างเมื่อ', 'หมดอายุ'],
+      ...filtered.map((i) => [
+        i.short_url,
+        i.original_url,
+        i.total_clicks,
+        i.total_clicks - i.qr_scans,
+        i.qr_scans,
+        csvDate(i.last_clicked_at),
+        csvDate(i.created_at),
+        csvDate(i.expires_at),
+      ]),
+    ];
+    downloadCsv(`short-url-history-${today()}.csv`, rows);
+  }
+
   return (
     <section className="card stack">
       <div className="history-head">
         <h2>ประวัติลิงก์ของฉัน</h2>
-        <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาลิงก์..." aria-label="ค้นหาลิงก์" />
+        <div className="row-gap history-tools">
+          <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาลิงก์..." aria-label="ค้นหาลิงก์" />
+          <button type="button" className="btn" onClick={exportCsv} disabled={filtered.length === 0} title="ดาวน์โหลดรายการลิงก์และสถิติเป็นไฟล์ CSV (เปิดใน Excel ได้)">
+            ⬇ Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="summary">
